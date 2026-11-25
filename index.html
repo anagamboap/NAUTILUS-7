@@ -1,0 +1,2459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NAUTILUS-7 | Research Submarine Simulation</title>
+    <style>
+        :root {
+            --bg-deep: #030814;
+            --bg-panel: #0a1329;
+            --neon-cyan: #00f3ff;
+            --neon-green: #00ff88;
+            --neon-amber: #ffaa00;
+            --neon-red: #ff3355;
+            --text-dim: #5a7b9c;
+            --text-bright: #d0e6ff;
+            --font-mono: 'Courier New', Courier, monospace;
+            --font-ui: system-ui, -apple-system, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        html, body {
+            width: 100vw;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: var(--bg-deep);
+            color: var(--text-bright);
+            font-family: var(--font-ui);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        body::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+            background-size: 100% 4px;
+            z-index: 100;
+            pointer-events: none;
+            opacity: 0.6;
+        }
+
+        .top-hud {
+            height: 72px;
+            min-height: 72px;
+            width: 100%;
+            background: rgba(10, 19, 41, 0.85);
+            border-bottom: 2px solid rgba(0, 243, 255, 0.2);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            z-index: 20;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .hud-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sub-logo {
+            width: 32px;
+            height: 32px;
+            border: 2px solid var(--neon-cyan);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
+            animation: logoPulse 3s infinite ease-in-out;
+        }
+
+        .sub-logo::after {
+            content: '';
+            width: 12px;
+            height: 12px;
+            background: var(--neon-cyan);
+            clip-path: polygon(100% 50%, 0 0, 0 100%);
+        }
+
+        @keyframes logoPulse {
+            0%, 100% { border-color: var(--neon-cyan); box-shadow: 0 0 10px rgba(0, 243, 255, 0.3); }
+            50% { border-color: var(--neon-green); box-shadow: 0 0 15px rgba(0, 255, 136, 0.5); }
+        }
+
+        .sub-title-box h1 {
+            font-size: 1.1rem;
+            letter-spacing: 2px;
+            font-weight: 800;
+            color: #fff;
+            text-shadow: 0 0 8px rgba(0, 243, 255, 0.5);
+        }
+
+        .sub-title-box span {
+            font-size: 0.65rem;
+            color: var(--neon-cyan);
+            letter-spacing: 1px;
+            font-family: var(--font-mono);
+        }
+
+        .crew-tag {
+            background: rgba(0, 243, 255, 0.1);
+            border: 1px solid var(--neon-cyan);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .hud-status-badge {
+            background: rgba(255, 51, 85, 0.15);
+            border: 1px solid var(--neon-red);
+            color: var(--neon-red);
+            padding: 6px 14px;
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            animation: statusFlash 1.5s infinite alternate;
+        }
+
+        .hud-status-badge .indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--neon-red);
+            box-shadow: 0 0 8px var(--neon-red);
+        }
+
+        .hud-status-badge.status-ok {
+            background: rgba(0, 255, 136, 0.15);
+            border-color: var(--neon-green);
+            color: var(--neon-green);
+            animation: none;
+        }
+
+        .hud-status-badge.status-ok .indicator {
+            background: var(--neon-green);
+            box-shadow: 0 0 8px var(--neon-green);
+        }
+
+        @keyframes statusFlash {
+            0% { opacity: 0.6; }
+            100% { opacity: 1; box-shadow: 0 0 12px rgba(255, 33, 85, 0.4); }
+        }
+
+        .hud-timer-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .mission-badge {
+            font-size: 0.7rem;
+            color: var(--neon-cyan);
+            letter-spacing: 1.5px;
+            font-family: var(--font-mono);
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+
+        .timer-digits {
+            font-family: var(--font-mono);
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--neon-amber);
+            text-shadow: 0 0 12px rgba(255, 170, 0, 0.6);
+            letter-spacing: 2px;
+            line-height: 1;
+        }
+
+        .timer-digits.urgent {
+            color: var(--neon-red);
+            text-shadow: 0 0 20px rgba(255, 51, 85, 0.9);
+            animation: pulseTimer 0.5s infinite alternate;
+        }
+
+        @keyframes pulseTimer {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.08); }
+        }
+
+        .hud-metrics {
+            display: flex;
+            gap: 20px;
+        }
+
+        .metric-box {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .metric-label {
+            font-size: 0.6rem;
+            color: var(--text-dim);
+            letter-spacing: 1px;
+            font-family: var(--font-mono);
+        }
+
+        .metric-val {
+            font-family: var(--font-mono);
+            font-size: 1.1rem;
+            color: var(--neon-cyan);
+            font-weight: 600;
+        }
+
+        .hud-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .start-timer-btn {
+            background: linear-gradient(135deg, rgba(0, 243, 255, 0.3), rgba(0, 136, 204, 0.5));
+            border: 1px solid var(--neon-cyan);
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
+        }
+
+        .start-timer-btn:hover {
+            background: rgba(0, 243, 255, 0.6);
+            color: #030814;
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.7);
+        }
+
+        .start-timer-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            border-color: var(--text-dim);
+            box-shadow: none;
+        }
+
+        .teacher-solve-btn {
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.2), rgba(0, 255, 136, 0.4));
+            border: 1px solid var(--neon-green);
+            color: var(--neon-green);
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.2);
+        }
+
+        .teacher-solve-btn:hover {
+            background: rgba(0, 255, 136, 0.5);
+            color: #030814;
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.6);
+        }
+
+        .retry-btn {
+            background: linear-gradient(135deg, rgba(255, 170, 0, 0.2), rgba(255, 170, 0, 0.4));
+            border: 1px solid var(--neon-amber);
+            color: var(--neon-amber);
+            padding: 8px 14px;
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: none;
+        }
+
+        .retry-btn:hover {
+            background: rgba(255, 170, 0, 0.6);
+            color: #030814;
+        }
+
+        .icon-btn {
+            background: rgba(0, 243, 255, 0.05);
+            border: 1px solid rgba(0, 243, 255, 0.3);
+            color: var(--neon-cyan);
+            width: 38px;
+            height: 38px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .icon-btn:hover {
+            background: rgba(0, 243, 255, 0.2);
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
+        }
+
+        .viewport-layout {
+            flex: 1;
+            width: 100%;
+            height: calc(100vh - 72px);
+            display: grid;
+            grid-template-columns: 290px 1fr 310px;
+            gap: 12px;
+            padding: 12px;
+            position: relative;
+            z-index: 10;
+            min-height: 0;
+        }
+
+        .panel {
+            background: rgba(10, 19, 41, 0.75);
+            border: 1px solid rgba(0, 243, 255, 0.15);
+            border-radius: 6px;
+            backdrop-filter: blur(6px);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+            box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.5);
+            min-height: 0;
+        }
+
+        .panel-header {
+            background: rgba(0, 243, 255, 0.05);
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(0, 243, 255, 0.15);
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--neon-cyan);
+            letter-spacing: 1.5px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-body {
+            padding: 12px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        .gauge-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .gauge-title {
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            display: flex;
+            justify-content: space-between;
+            font-family: var(--font-mono);
+        }
+
+        .gauge-bar-bg {
+            height: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .gauge-bar-fill {
+            height: 100%;
+            width: 20%;
+            background: linear-gradient(90deg, var(--neon-red), var(--neon-amber));
+            transition: width 0.5s ease;
+        }
+
+        .gauge-bar-fill.ok {
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-green));
+            box-shadow: 0 0 8px var(--neon-green);
+        }
+
+        .radar-box {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1;
+            max-height: 220px;
+            background: radial-gradient(circle, rgba(0, 255, 136, 0.05) 0%, rgba(3, 8, 20, 0.95) 80%);
+            border-radius: 50%;
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            overflow: hidden;
+            margin: 4px auto;
+        }
+
+        #radarCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .radar-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            flex: 1;
+            background: rgba(0, 243, 255, 0.1);
+            border: 1px solid var(--neon-cyan);
+            color: #fff;
+            padding: 8px;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            letter-spacing: 1px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .action-btn:hover {
+            background: rgba(0, 243, 255, 0.25);
+            box-shadow: 0 0 12px rgba(0, 243, 255, 0.4);
+        }
+
+        .viewport-center {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            position: relative;
+            min-height: 0;
+            height: 100%;
+        }
+
+        /* Reinforced Submarine Observation Window Frame */
+        .ocean-window-frame {
+            flex: 1;
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 10px solid #0b162c;
+            box-shadow:
+                inset 0 0 70px rgba(0, 5, 15, 0.95),
+                inset 0 0 18px rgba(0, 243, 255, 0.22),
+                0 0 25px rgba(0, 0, 0, 0.8);
+            background: #010918;
+            min-height: 0;
+        }
+
+        .ocean-window-frame::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(125deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.01) 28%, transparent 55%),
+                radial-gradient(circle at 82% 18%, rgba(160, 235, 255, 0.09) 0%, transparent 45%);
+            pointer-events: none;
+            z-index: 6;
+        }
+
+        .ocean-window-frame::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 6px;
+            border: 2px solid rgba(140, 210, 255, 0.16);
+            pointer-events: none;
+            box-shadow: inset 0 0 35px rgba(0, 12, 28, 0.85);
+            z-index: 7;
+        }
+
+        #viewportCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .window-overlay-controls {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            display: flex;
+            gap: 8px;
+            z-index: 15;
+        }
+
+        .window-tag {
+            position: absolute;
+            bottom: 16px;
+            left: 16px;
+            background: rgba(3, 8, 20, 0.75);
+            border: 1px solid rgba(0, 243, 255, 0.3);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            color: var(--neon-cyan);
+            backdrop-filter: blur(4px);
+            pointer-events: none;
+            z-index: 15;
+        }
+
+        /* Timeout Emergency Alert Banner inside Observation Window */
+        .timeout-alert-banner {
+            position: absolute;
+            inset: 0;
+            background: rgba(40, 5, 12, 0.82);
+            backdrop-filter: blur(4px);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            z-index: 18;
+            text-align: center;
+            padding: 20px;
+            border: 2px solid var(--neon-red);
+        }
+
+        .timeout-alert-banner h3 {
+            font-family: var(--font-mono);
+            font-size: 1.5rem;
+            color: var(--neon-red);
+            letter-spacing: 3px;
+            text-shadow: 0 0 15px rgba(255, 51, 85, 0.8);
+            animation: statusFlash 0.8s infinite alternate;
+        }
+
+        .timeout-alert-banner p {
+            font-size: 0.9rem;
+            color: #fff;
+            max-width: 420px;
+            line-height: 1.4;
+        }
+
+        .timeout-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 6px;
+        }
+
+        .radio-console {
+            height: 100px;
+            min-height: 100px;
+            background: rgba(10, 19, 41, 0.85);
+            border: 1px solid rgba(0, 243, 255, 0.2);
+            border-radius: 6px;
+            padding: 10px 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+        }
+
+        .radio-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 4px;
+        }
+
+        .radio-title {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--neon-amber);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .caption-tag {
+            background: rgba(255, 170, 0, 0.2);
+            border: 1px solid var(--neon-amber);
+            color: var(--neon-amber);
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            padding: 1px 6px;
+            border-radius: 3px;
+        }
+
+        .subtitle-box {
+            font-size: 0.9rem;
+            color: #ffffff;
+            line-height: 1.3;
+            min-height: 2.6em;
+            display: flex;
+            align-items: center;
+            text-shadow: 0 0 6px rgba(0, 0, 0, 0.8);
+        }
+
+        .system-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .sys-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 51, 85, 0.3);
+            border-radius: 4px;
+            padding: 8px 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.3s;
+        }
+
+        .sys-card.repaired {
+            border-color: var(--neon-green);
+            background: rgba(0, 255, 136, 0.05);
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.1);
+        }
+
+        .sys-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sys-icon {
+            width: 26px;
+            height: 26px;
+            border-radius: 4px;
+            background: rgba(255, 51, 85, 0.2);
+            color: var(--neon-red);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        .sys-card.repaired .sys-icon {
+            background: rgba(0, 255, 136, 0.2);
+            color: var(--neon-green);
+        }
+
+        .sys-name {
+            font-size: 0.72rem;
+            font-family: var(--font-mono);
+            font-weight: 700;
+        }
+
+        .sys-status-label {
+            font-size: 0.65rem;
+            font-family: var(--font-mono);
+            color: var(--neon-red);
+        }
+
+        .sys-card.repaired .sys-status-label {
+            color: var(--neon-green);
+        }
+
+        .event-log {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            height: 90px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .log-entry { display: flex; gap: 8px; line-height: 1.2; }
+        .log-time { color: var(--neon-cyan); }
+        .log-msg.alert { color: var(--neon-amber); }
+        .log-msg.success { color: var(--neon-green); }
+
+        .overlay-screen {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle, #0a1733 0%, #020612 100%);
+            z-index: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .intro-card {
+            max-width: 580px;
+            width: 100%;
+            background: rgba(10, 19, 41, 0.95);
+            border: 2px solid var(--neon-cyan);
+            border-radius: 8px;
+            padding: 28px;
+            box-shadow: 0 0 40px rgba(0, 243, 255, 0.25);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .intro-card h2 {
+            font-size: 1.6rem;
+            letter-spacing: 3px;
+            color: #fff;
+            text-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        .intro-card p {
+            font-size: 0.88rem;
+            color: var(--text-bright);
+            line-height: 1.5;
+            text-align: left;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 14px;
+            border-radius: 6px;
+            border-left: 3px solid var(--neon-amber);
+        }
+
+        .crew-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            text-align: left;
+        }
+
+        .crew-input-group label {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--neon-cyan);
+        }
+
+        .crew-input {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--neon-cyan);
+            padding: 12px;
+            border-radius: 4px;
+            color: #fff;
+            font-family: var(--font-mono);
+            font-size: 1rem;
+            outline: none;
+        }
+
+        .start-btn {
+            background: linear-gradient(135deg, var(--neon-cyan), #0088cc);
+            border: none;
+            color: #030814;
+            font-weight: 800;
+            font-family: var(--font-mono);
+            font-size: 1rem;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            letter-spacing: 2px;
+            transition: all 0.3s;
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.4);
+        }
+
+        .start-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 25px rgba(0, 243, 255, 0.7);
+        }
+
+        .anim-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(3, 8, 20, 0.95);
+            z-index: 600;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .anim-viewport {
+            width: 480px;
+            height: 300px;
+            border: 3px solid var(--neon-cyan);
+            border-radius: 8px;
+            background: #000;
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #animCanvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .anim-title {
+            font-family: var(--font-mono);
+            font-size: 1.2rem;
+            letter-spacing: 2px;
+            color: var(--neon-green);
+        }
+
+        .anim-title.fail { color: var(--neon-red); }
+
+        .attached-video-overlay {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 800;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        #attachedVideoPlayer {
+            width: 100vw;
+            height: 100vh;
+            object-fit: contain;
+            background: #000;
+        }
+
+        .video-loading-spinner {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border: 6px solid rgba(0, 243, 255, 0.2);
+            border-top-color: var(--neon-cyan);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            z-index: 810;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .video-error-card {
+            position: absolute;
+            background: rgba(10, 19, 41, 0.95);
+            border: 2px solid var(--neon-red);
+            padding: 24px;
+            border-radius: 8px;
+            text-align: center;
+            display: none;
+            z-index: 820;
+            max-width: 450px;
+        }
+
+        .video-error-card h3 { color: var(--neon-red); margin-bottom: 12px; font-family: var(--font-mono); }
+        .video-error-card p { font-size: 0.85rem; margin-bottom: 16px; color: var(--text-bright); }
+
+        .emergency-active {
+            animation: emergencyFlash 0.8s infinite alternate;
+        }
+
+        @keyframes emergencyFlash {
+            0% { background-color: rgba(255, 51, 85, 0.05); }
+            100% { background-color: rgba(255, 51, 85, 0.3); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 1. CREW REGISTRATION MODAL -->
+    <div class="overlay-screen" id="regOverlay">
+        <div class="intro-card">
+            <h2>NAUTILUS-7 RESCUE</h2>
+            <p>
+                <strong>Welcome, marine investigators!</strong><br><br>
+                You are now inside NAUTILUS-7, exploring the deep ocean. Unfortunately, several important submarine systems have stopped working, and we need your help!<br><br>
+                Your mission is to repair the submarine by completing five challenges. Every time you successfully complete a mission, one damaged part of the submarine will be repaired.<br><br>
+                Work together, stay focused, and complete all five missions before time runs out. Are you ready to save the submarine?
+            </p>
+            <div class="crew-input-group">
+                <label for="crewNameInput">ENTER TEAM OR GROUP NAME:</label>
+                <input type="text" id="crewNameInput" class="crew-input" placeholder="e.g., Alpha Investigators" value="Team Atlantis">
+            </div>
+            <button class="start-btn" id="startRegBtn" type="button">INITIALIZE MISSION 1</button>
+        </div>
+    </div>
+
+    <!-- 2. REPAIR & BREAKDOWN CANVAS OVERLAY -->
+    <div class="anim-overlay" id="animOverlay">
+        <div class="anim-title" id="animTitle">SYSTEM REPAIR IN PROGRESS...</div>
+        <div class="anim-viewport">
+            <canvas id="animCanvas" width="480" height="300"></canvas>
+        </div>
+        <div class="caption-tag" id="animCaptionTag">[AUDIO: REPAIR SEQUENCE ACTIVE]</div>
+    </div>
+
+    <!-- 3. FINAL ATTACHED VIDEO PLAYER OVERLAY -->
+    <div class="attached-video-overlay" id="videoOverlay">
+        <div class="video-loading-spinner" id="videoSpinner"></div>
+        <video id="attachedVideoPlayer" playsinline preload="auto">
+            <source id="videoSourceMp4" src="gemini_generated_video_6bed35c4.mp4" type="video/mp4">
+            <source id="videoSourceLocal" src="video_1.mp4" type="video/mp4">
+        </video>
+        <div class="video-error-card" id="videoErrorCard">
+            <h3>VIDEO LOAD NOTICE</h3>
+            <p id="videoErrorText">The final submarine surfacing video couldn't auto-load from disk security settings.</p>
+            <label class="start-btn" style="display: inline-block; cursor: pointer; font-size: 0.8rem;">
+                SELECT VIDEO FILE FROM COMPUTER
+                <input type="file" id="videoFileInput" accept="video/*" style="display: none;">
+            </label>
+            <br><br>
+            <button class="action-btn" id="skipVideoBtn" style="width: 100%;">CONTINUE TO FINAL VICTORY</button>
+        </div>
+    </div>
+
+    <!-- 4. TOP CONTROL DASHBOARD HUD -->
+    <header class="top-hud">
+        <div class="hud-brand">
+            <div class="sub-logo"></div>
+            <div class="sub-title-box">
+                <h1>NAUTILUS-7</h1>
+                <span>RESEARCH SUBMARINE</span>
+            </div>
+            <div class="crew-tag">CREW: <span id="hudCrewName">Team Atlantis</span></div>
+        </div>
+
+        <div class="hud-status-badge" id="statusBadge">
+            <div class="indicator"></div>
+            <span id="systemStatusText">CRITICAL FAILURE</span>
+        </div>
+
+        <div class="hud-timer-container">
+            <span class="mission-badge" id="missionBadge">MISSION 1 OF 5</span>
+            <span class="timer-digits" id="timerDigits">01:00</span>
+        </div>
+
+        <div class="hud-metrics">
+            <div class="metric-box">
+                <span class="metric-label">CURRENT DEPTH</span>
+                <span class="metric-val" id="depthVal">820 m</span>
+            </div>
+            <div class="metric-box">
+                <span class="metric-label">HULL PRESSURE</span>
+                <span class="metric-val" id="pressureVal">81.4 ATM</span>
+            </div>
+        </div>
+
+        <div class="hud-controls">
+            <button class="start-timer-btn" id="startTimerBtn" disabled>LISTEN TO INSTRUCTIONS...</button>
+            <button class="retry-btn" id="retryMissionBtn">RETRY MISSION</button>
+            <button class="teacher-solve-btn" id="teacherSolveBtn">MISSION SOLVED</button>
+            <button class="icon-btn" id="audioToggleBtn" title="Toggle Sound">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- 5. MAIN WORKSPACE VIEWPORT -->
+    <main class="viewport-layout">
+        <aside class="panel">
+            <div class="panel-header">
+                <span>SYSTEM STATUS</span>
+                <span>HUD-01</span>
+            </div>
+            <div class="panel-body">
+                <div class="gauge-group">
+                    <div class="gauge-title"><span>1. ELECTRICAL GRID</span><span id="g1Val">FAILED</span></div>
+                    <div class="gauge-bar-bg"><div class="gauge-bar-fill" id="g1Bar"></div></div>
+                </div>
+                <div class="gauge-group">
+                    <div class="gauge-title"><span>2. PRESSURE WINDOWS</span><span id="g2Val">CRACKED</span></div>
+                    <div class="gauge-bar-bg"><div class="gauge-bar-fill" id="g2Bar"></div></div>
+                </div>
+                <div class="gauge-group">
+                    <div class="gauge-title"><span>3. SONAR NAVIGATION</span><span id="g3Val">OFFLINE</span></div>
+                    <div class="gauge-bar-bg"><div class="gauge-bar-fill" id="g3Bar"></div></div>
+                </div>
+                <div class="gauge-group">
+                    <div class="gauge-title"><span>4. OXYGEN RESERVES</span><span id="g4Val">LOW (20%)</span></div>
+                    <div class="gauge-bar-bg"><div class="gauge-bar-fill" id="g4Bar"></div></div>
+                </div>
+                <div class="gauge-group">
+                    <div class="gauge-title"><span>5. MAIN ENGINE THRUST</span><span id="g5Val">DISABLED</span></div>
+                    <div class="gauge-bar-bg"><div class="gauge-bar-fill" id="g5Bar"></div></div>
+                </div>
+
+                <div class="panel-header" style="margin-top: 4px;">
+                    <span>ACTIVE SONAR</span>
+                    <span>360° SWEEP</span>
+                </div>
+                <div class="radar-box">
+                    <canvas id="radarCanvas"></canvas>
+                </div>
+                <div class="radar-controls">
+                    <button class="action-btn" id="sonarPulseBtn">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7z"></path></svg>
+                        SONAR PING
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <section class="viewport-center">
+            <div class="ocean-window-frame">
+                <div class="window-overlay-controls">
+                    <button class="action-btn" id="spotlightBtn" style="padding: 4px 10px; font-size: 0.65rem;">
+                        SEARCHLIGHT OFF
+                    </button>
+                </div>
+                <div class="window-tag">OBSERVATION VIEWPORT // PELAGIC REEF CAM 01</div>
+                
+                <!-- Timeout Emergency Alert Overlay -->
+                <div class="timeout-alert-banner" id="timeoutAlertBanner">
+                    <h3>TIME EXPIRED — EMERGENCY ALERT</h3>
+                    <p>Mission countdown has reached 00:00. Submarine hull integrity is under stress. Choose an action below to continue.</p>
+                    <div class="timeout-actions">
+                        <button class="retry-btn" id="bannerRetryBtn" style="display: inline-block;">RETRY MISSION</button>
+                        <button class="teacher-solve-btn" id="bannerSolveBtn">MISSION SOLVED</button>
+                    </div>
+                </div>
+
+                <canvas id="viewportCanvas"></canvas>
+            </div>
+
+            <div class="radio-console">
+                <div class="radio-header">
+                    <div class="radio-title">
+                        <span>COMMS CHANNEL // CAPTAIN VANCE</span>
+                        <span class="caption-tag" id="soundCaptionTag">[AUDIO: BUBBLING WATER]</span>
+                    </div>
+                    <span style="font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-dim);">FREQ: 142.80 MHz</span>
+                </div>
+                <div class="subtitle-box" id="subtitleBox">
+                    "Welcome, team! Complete your physical challenge before time runs out!"
+                </div>
+            </div>
+        </section>
+
+        <aside class="panel">
+            <div class="panel-header">
+                <span>REPAIR PROGRESS</span>
+                <span id="progressCount">0 / 5 REPAIRED</span>
+            </div>
+            <div class="panel-body">
+                <div class="system-list">
+                    <div class="sys-card" id="sysCard1">
+                        <div class="sys-info">
+                            <div class="sys-icon">1</div>
+                            <div>
+                                <div class="sys-name">ELECTRICAL GRID</div>
+                                <div class="sys-status-label" id="sysLbl1">DAMAGED</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sys-card" id="sysCard2">
+                        <div class="sys-info">
+                            <div class="sys-icon">2</div>
+                            <div>
+                                <div class="sys-name">MAIN VIEWPORT</div>
+                                <div class="sys-status-label" id="sysLbl2">DAMAGED</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sys-card" id="sysCard3">
+                        <div class="sys-info">
+                            <div class="sys-icon">3</div>
+                            <div>
+                                <div class="sys-name">SONAR NAVIGATION</div>
+                                <div class="sys-status-label" id="sysLbl3">DAMAGED</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sys-card" id="sysCard4">
+                        <div class="sys-info">
+                            <div class="sys-icon">4</div>
+                            <div>
+                                <div class="sys-name">OXYGEN SYSTEM</div>
+                                <div class="sys-status-label" id="sysLbl4">DAMAGED</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sys-card" id="sysCard5">
+                        <div class="sys-info">
+                            <div class="sys-icon">5</div>
+                            <div>
+                                <div class="sys-name">MAIN ENGINE</div>
+                                <div class="sys-status-label" id="sysLbl5">DAMAGED</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-header" style="margin-top: 4px;">
+                    <span>BIOLOGICAL LOG</span>
+                </div>
+                <div class="event-log" id="eventLog">
+                    <div class="log-entry"><span class="log-time">[01:00]</span><span class="log-msg">Observation viewport cameras online.</span></div>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <!-- 6. FINAL VICTORY OVERLAY -->
+    <div class="overlay-screen" id="victoryOverlay" style="display: none;">
+        <div class="intro-card" style="border-color: var(--neon-green); box-shadow: 0 0 50px rgba(0,255,136,0.4);">
+            <h2 style="color: var(--neon-green);">MISSION COMPLETE!</h2>
+            <p>
+                <strong>You repaired the submarine and saved the crew. Excellent work, marine investigators!</strong><br><br>
+                Team: <span id="finalVictoryCrewName" style="color: var(--neon-cyan); font-weight: bold;">Team Atlantis</span><br><br>
+                All five submarine components are restored to 100% capacity. NAUTILUS-7 has successfully surfaced!
+            </p>
+            <button class="start-btn" id="newCrewBtn" style="background: linear-gradient(135deg, var(--neon-green), #00aa55);" type="button">NEW CREW</button>
+        </div>
+    </div>
+
+    <script>
+        let audioCtx = null;
+        let isAudioMuted = false;
+        let isSpotlightOn = false;
+        let currentMission = 1;
+        const totalMissions = 5;
+
+        let missionStartTime = 0;
+        let timerAnimFrame = null;
+        let isTimerRunning = false;
+        let isNarrationActive = false;
+        let isAnimPlaying = false;
+        let crewName = "Team Atlantis";
+
+        let emergencyAlarmInterval = null;
+        let isEmergencyActive = false;
+
+        let captainVoices = [];
+        let captainVoice = null;
+        let repairedSystems = [false, false, false, false, false];
+
+        const viewportCanvas = document.getElementById('viewportCanvas');
+        const ctxView = viewportCanvas.getContext('2d');
+        const radarCanvas = document.getElementById('radarCanvas');
+        const ctxRadar = radarCanvas.getContext('2d');
+        const animCanvas = document.getElementById('animCanvas');
+        const ctxAnim = animCanvas.getContext('2d');
+
+        const mouse = { x: -1000, y: -1000 };
+
+        function setupEnglishVoice() {
+            if (!('speechSynthesis' in window)) return;
+            const loadVoices = () => {
+                try {
+                    const allVoices = window.speechSynthesis.getVoices();
+                    captainVoices = allVoices.filter(v => v.lang && v.lang.toLowerCase().startsWith('en'));
+                    captainVoice = captainVoices.find(v => 
+                        v.lang.includes('en-US') && (v.name.includes('Male') || v.name.includes('Natural') || v.name.includes('Google'))
+                    ) || captainVoices[0] || allVoices.find(v => v.lang.startsWith('en')) || null;
+                } catch(e) {}
+            };
+            loadVoices();
+            if (window.speechSynthesis.onvoiceschanged !== undefined) {
+                window.speechSynthesis.onvoiceschanged = loadVoices;
+            }
+        }
+
+        function speakRadioMessage(englishText, onCompleteCallback) {
+            document.getElementById('subtitleBox').innerText = `"${englishText}"`;
+            
+            isNarrationActive = true;
+            const startTimerBtn = document.getElementById('startTimerBtn');
+            startTimerBtn.disabled = true;
+            startTimerBtn.innerText = "LISTEN TO INSTRUCTIONS...";
+            updateCaption("[STATUS: LISTEN TO INSTRUCTIONS]");
+
+            if ('speechSynthesis' in window && !isAudioMuted) {
+                try {
+                    window.speechSynthesis.cancel();
+                    const utterance = new SpeechSynthesisUtterance(englishText);
+                    utterance.lang = 'en-US';
+                    utterance.rate = 0.95;
+                    utterance.pitch = 0.90;
+                    if (captainVoice) utterance.voice = captainVoice;
+
+                    utterance.onend = () => { onNarrationComplete(onCompleteCallback); };
+                    utterance.onerror = () => { onNarrationComplete(onCompleteCallback); };
+
+                    window.speechSynthesis.speak(utterance);
+                } catch(e) {
+                    onNarrationComplete(onCompleteCallback);
+                }
+            } else {
+                setTimeout(() => { onNarrationComplete(onCompleteCallback); }, 2000);
+            }
+        }
+
+        function onNarrationComplete(onCompleteCallback) {
+            isNarrationActive = false;
+            const startTimerBtn = document.getElementById('startTimerBtn');
+            startTimerBtn.disabled = false;
+            startTimerBtn.innerText = `START MISSION`;
+            
+            document.getElementById('subtitleBox').innerText = `"Instructions complete. Get ready! Click START MISSION to begin timer!"`;
+            updateCaption("[STATUS: GET READY!]");
+            logEvent(`NARRATION FINISHED: Click START MISSION to begin 01:00 countdown.`, false);
+
+            if (typeof onCompleteCallback === 'function') {
+                onCompleteCallback();
+            }
+        }
+
+        function initAudio() {
+            if (audioCtx) {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                return;
+            }
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+                startBubblingSoundEngine();
+                setupEnglishVoice();
+            } catch(e) {}
+        }
+
+        function updateCaption(text) {
+            document.getElementById('soundCaptionTag').innerText = text;
+        }
+
+        function playSingleBubblePop(frequency, pitchDrop, vol) {
+            if (!audioCtx || isAudioMuted || isEmergencyActive) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(frequency + pitchDrop, audioCtx.currentTime + 0.06);
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.07);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.07);
+            } catch(e) {}
+        }
+
+        function startBubblingSoundEngine() {
+            const triggerBubble = () => {
+                if (!isAudioMuted && audioCtx && !isEmergencyActive) {
+                    const baseFreq = 320 + Math.random() * 500;
+                    playSingleBubblePop(baseFreq, 120, 0.018);
+                }
+                setTimeout(triggerBubble, 240 + Math.random() * 420);
+            };
+            triggerBubble();
+        }
+
+        function playSoundEffect(type) {
+            if (!audioCtx || isAudioMuted) return;
+            if (isEmergencyActive && type !== 'fail') return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'success') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(523, audioCtx.currentTime);
+                    osc.frequency.setValueAtTime(659, audioCtx.currentTime + 0.15);
+                    osc.frequency.setValueAtTime(783, audioCtx.currentTime + 0.3);
+                    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.6);
+                    updateCaption("[AUDIO: CHIME SUCCESS]");
+                } else if (type === 'whale') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(105, audioCtx.currentTime);
+                    osc.frequency.linearRampToValueAtTime(215, audioCtx.currentTime + 1.3);
+                    osc.frequency.linearRampToValueAtTime(88, audioCtx.currentTime + 3.0);
+                    gain.gain.setValueAtTime(0.07, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 3.0);
+                    osc.start(); osc.stop(audioCtx.currentTime + 3.0);
+                    updateCaption("[AUDIO: DISTANT WHALE CALL]");
+                } else if (type === 'dolphin') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(2400, audioCtx.currentTime + 0.12);
+                    osc.frequency.exponentialRampToValueAtTime(1400, audioCtx.currentTime + 0.25);
+                    gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.28);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.28);
+                    updateCaption("[AUDIO: DOLPHIN VOCALIZATION]");
+                } else if (type === 'sonar') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(900, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(450, audioCtx.currentTime + 0.8);
+                    gain.gain.setValueAtTime(0.14, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.8);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.8);
+                    updateCaption("[AUDIO: SONAR PING]");
+                }
+            } catch(e) {}
+        }
+
+        /* -------------------------------------------------------------------
+           CONTROLLED TIMEOUT EMERGENCY ALARM (Plays until MISSION SOLVED or RETRY MISSION)
+           ------------------------------------------------------------------- */
+        function playSingleWarningPulse() {
+            if (!audioCtx || isAudioMuted || !isEmergencyActive) return;
+            try {
+                const now = audioCtx.currentTime;
+                const osc1 = audioCtx.createOscillator();
+                const osc2 = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc1.type = 'triangle';
+                osc2.type = 'sine';
+
+                osc1.frequency.setValueAtTime(520, now);
+                osc1.frequency.setValueAtTime(390, now + 0.35);
+
+                osc2.frequency.setValueAtTime(260, now);
+                osc2.frequency.setValueAtTime(195, now + 0.35);
+
+                gain.gain.setValueAtTime(0.001, now);
+                gain.gain.linearRampToValueAtTime(0.11, now + 0.05);
+                gain.gain.setValueAtTime(0.11, now + 0.65);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.85);
+
+                osc1.connect(gain);
+                osc2.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc1.start(now);
+                osc2.start(now);
+                osc1.stop(now + 0.88);
+                osc2.stop(now + 0.88);
+            } catch(e) {}
+        }
+
+        function startEmergencyAlarm() {
+            stopEmergencyAlarm();
+            isEmergencyActive = true;
+            updateCaption("[AUDIO: SUBMARINE TIMEOUT WARNING]");
+            playSingleWarningPulse();
+            emergencyAlarmInterval = setInterval(() => {
+                if (isEmergencyActive) {
+                    playSingleWarningPulse();
+                }
+            }, 2200);
+        }
+
+        function stopEmergencyAlarm() {
+            isEmergencyActive = false;
+            if (emergencyAlarmInterval) {
+                clearInterval(emergencyAlarmInterval);
+                emergencyAlarmInterval = null;
+            }
+            document.body.classList.remove('emergency-active');
+            document.getElementById('timeoutAlertBanner').style.display = 'none';
+            document.getElementById('retryMissionBtn').style.display = 'none';
+        }
+
+        /* -------------------------------------------------------------------
+           STRICT 01:00 (ONE MINUTE) COUNTDOWN TIMER PER MISSION
+           ------------------------------------------------------------------- */
+        function formatTimeMMSS(totalSecs) {
+            const mins = Math.floor(totalSecs / 60).toString().padStart(2, '0');
+            const secs = (totalSecs % 60).toString().padStart(2, '0');
+            return `${mins}:${secs}`;
+        }
+
+        function prepareMissionState(missionNum, instructionText) {
+            stopMissionTimer();
+            stopEmergencyAlarm();
+            document.getElementById('timerDigits').innerText = "01:00";
+            document.getElementById('timerDigits').classList.remove('urgent');
+
+            const startBtn = document.getElementById('startTimerBtn');
+            startBtn.disabled = true;
+            startBtn.innerText = "LISTEN TO INSTRUCTIONS...";
+
+            speakRadioMessage(instructionText);
+        }
+
+        function triggerManualTimerStart() {
+            if (isNarrationActive || isTimerRunning) return;
+
+            stopMissionTimer();
+            stopEmergencyAlarm();
+            missionStartTime = Date.now();
+            isTimerRunning = true;
+
+            const startBtn = document.getElementById('startTimerBtn');
+            startBtn.disabled = true;
+            startBtn.innerText = `MISSION ${currentMission} RUNNING...`;
+
+            document.getElementById('subtitleBox').innerText = `"Timer started! Complete Mission ${currentMission} before time runs out!"`;
+            updateCaption("[STATUS: TIMER COUNTING DOWN]");
+            logEvent(`MISSION ${currentMission} TIMER STARTED: 01:00 countdown active.`, false);
+
+            updateTimerLoop();
+        }
+
+        function stopMissionTimer() {
+            isTimerRunning = false;
+            if (timerAnimFrame) cancelAnimationFrame(timerAnimFrame);
+        }
+
+        function updateTimerLoop() {
+            if (!isTimerRunning) return;
+            
+            const elapsed = Math.floor((Date.now() - missionStartTime) / 1000);
+            const remaining = Math.max(0, 59 - elapsed);
+
+            const timerEl = document.getElementById('timerDigits');
+            timerEl.innerText = formatTimeMMSS(remaining);
+
+            if (remaining <= 10) {
+                timerEl.classList.add('urgent');
+            } else {
+                timerEl.classList.remove('urgent');
+            }
+
+            if (remaining <= 0) {
+                stopMissionTimer();
+                triggerMissionTimeout();
+            } else {
+                timerAnimFrame = requestAnimationFrame(updateTimerLoop);
+            }
+        }
+
+        function triggerMissionTimeout() {
+            if (isAnimPlaying) return;
+            stopMissionTimer();
+            document.body.classList.add('emergency-active');
+            document.getElementById('timeoutAlertBanner').style.display = 'flex';
+            document.getElementById('retryMissionBtn').style.display = 'inline-block';
+            document.getElementById('subtitleBox').innerText = `"Alert! Time has expired on Mission ${currentMission}! Press RETRY MISSION or MISSION SOLVED."`;
+            logEvent(`TIMEOUT ALERT: Mission ${currentMission} countdown reached 00:00.`, true);
+            startEmergencyAlarm();
+        }
+
+        function retryCurrentMission() {
+            stopEmergencyAlarm();
+            stopMissionTimer();
+            logEvent(`RETRYING MISSION ${currentMission} with full 01:00 countdown.`, true);
+            prepareMissionState(
+                currentMission,
+                `Resetting Mission ${currentMission}. Stay focused, crew! Listen to instructions and try again.`
+            );
+        }
+
+        function confirmMissionSuccess() {
+            if (isAnimPlaying) return;
+            stopMissionTimer();
+            stopEmergencyAlarm();
+            playSoundEffect('success');
+
+            const currentIdx = currentMission - 1;
+            repairedSystems[currentIdx] = true;
+            updateDashboardVisuals();
+
+            playMiniVideoAnimation(currentMission, true, () => {
+                if (currentMission < totalMissions) {
+                    currentMission++;
+                    document.getElementById('missionBadge').innerText = `MISSION ${currentMission} OF 5`;
+                    logEvent(`MISSION ${currentMission - 1} REPAIRED SUCCESS!`, false);
+
+                    prepareMissionState(
+                        currentMission,
+                        `Excellent work, team! Mission ${currentMission - 1} complete. Listen to instructions for Mission ${currentMission}.`
+                    );
+                } else {
+                    playAttachedSurfacingVideo();
+                }
+            });
+        }
+
+        /* -------------------------------------------------------------------
+           FINAL SURFACING VIDEO PLAYER
+           ------------------------------------------------------------------- */
+        function playAttachedSurfacingVideo() {
+            const overlay = document.getElementById('videoOverlay');
+            const player = document.getElementById('attachedVideoPlayer');
+            const spinner = document.getElementById('videoSpinner');
+            const errorCard = document.getElementById('videoErrorCard');
+            
+            overlay.style.display = 'flex';
+            spinner.style.display = 'block';
+            errorCard.style.display = 'none';
+
+            let hasPlayed = false;
+            player.currentTime = 0;
+
+            const handleVideoEnd = () => {
+                if (hasPlayed) return;
+                hasPlayed = true;
+                overlay.style.display = 'none';
+                triggerFinalVictory();
+            };
+
+            player.onended = handleVideoEnd;
+            player.onplaying = () => { spinner.style.display = 'none'; };
+            player.onerror = () => {
+                spinner.style.display = 'none';
+                errorCard.style.display = 'block';
+            };
+
+            const playPromise = player.play();
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    spinner.style.display = 'none';
+                }).catch(() => {
+                    spinner.style.display = 'none';
+                    errorCard.style.display = 'block';
+                });
+            }
+        }
+
+        document.getElementById('videoFileInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const player = document.getElementById('attachedVideoPlayer');
+                player.src = URL.createObjectURL(file);
+                document.getElementById('videoErrorCard').style.display = 'none';
+                document.getElementById('videoSpinner').style.display = 'block';
+                player.play();
+            }
+        });
+
+        document.getElementById('skipVideoBtn').addEventListener('click', () => {
+            document.getElementById('videoOverlay').style.display = 'none';
+            triggerFinalVictory();
+        });
+
+        function triggerFinalVictory() {
+            stopMissionTimer();
+            stopEmergencyAlarm();
+            document.getElementById('statusBadge').classList.add('status-ok');
+            document.getElementById('systemStatusText').innerText = "ALL SYSTEMS OK";
+            document.getElementById('depthVal').innerText = "0 m (SURFACE)";
+            document.getElementById('pressureVal').innerText = "1.0 ATM";
+            document.getElementById('finalVictoryCrewName').innerText = crewName;
+            document.getElementById('victoryOverlay').style.display = 'flex';
+            speakRadioMessage("MISSION COMPLETE! You repaired the submarine and saved the crew. Excellent work, marine investigators!");
+            logEvent(`ALL 5 MISSIONS COMPLETED! CREW SAVED NAUTILUS-7!`, false);
+        }
+
+        function updateDashboardVisuals() {
+            let count = 0;
+            for (let i = 0; i < 5; i++) {
+                const card = document.getElementById(`sysCard${i+1}`);
+                const lbl = document.getElementById(`sysLbl${i+1}`);
+                const bar = document.getElementById(`g${i+1}Bar`);
+                const val = document.getElementById(`g${i+1}Val`);
+
+                if (repairedSystems[i]) {
+                    count++;
+                    card.classList.add('repaired');
+                    lbl.innerText = "OPERATIONAL";
+                    bar.classList.add('ok');
+                    bar.style.width = "100%";
+                    val.innerText = "100% OK";
+                } else {
+                    card.classList.remove('repaired');
+                    lbl.innerText = "DAMAGED";
+                    bar.classList.remove('ok');
+                    bar.style.width = "20%";
+                    val.innerText = "FAILED";
+                }
+            }
+            document.getElementById('progressCount').innerText = `${count} / 5 REPAIRED`;
+        }
+
+        function playMiniVideoAnimation(missionNum, isSuccess, callback) {
+            isAnimPlaying = true;
+            const overlay = document.getElementById('animOverlay');
+            const title = document.getElementById('animTitle');
+            const capTag = document.getElementById('animCaptionTag');
+
+            overlay.style.display = 'flex';
+
+            const sysNames = ["ELECTRICAL GRID", "MAIN VIEWPORT", "SONAR NAVIGATION", "OXYGEN SYSTEM", "MAIN ENGINE"];
+            const currentSys = sysNames[missionNum - 1];
+
+            title.innerText = `REPAIRING: ${currentSys}...`;
+            title.classList.remove('fail');
+            capTag.innerText = `[VISUAL ANIMATION: REPAIRING ${currentSys}]`;
+
+            let frame = 0;
+            const totalFrames = 90;
+
+            function renderAnimFrame() {
+                frame++;
+                ctxAnim.clearRect(0, 0, animCanvas.width, animCanvas.height);
+
+                ctxAnim.fillStyle = '#050c1e';
+                ctxAnim.fillRect(0, 0, animCanvas.width, animCanvas.height);
+
+                const cx = animCanvas.width / 2;
+                const cy = animCanvas.height / 2;
+                const progress = frame / totalFrames;
+
+                ctxAnim.strokeStyle = '#00ff88';
+                ctxAnim.lineWidth = 6;
+                ctxAnim.beginPath();
+                ctxAnim.arc(cx, cy, 55, 0, Math.PI * 2 * progress);
+                ctxAnim.stroke();
+
+                ctxAnim.fillStyle = '#ffffff';
+                ctxAnim.font = 'bold 15px monospace';
+                ctxAnim.textAlign = 'center';
+                ctxAnim.fillText(`${currentSys} REPAIRED!`, cx, cy + 5);
+
+                if (frame < totalFrames) {
+                    requestAnimationFrame(renderAnimFrame);
+                } else {
+                    overlay.style.display = 'none';
+                    isAnimPlaying = false;
+                    callback();
+                }
+            }
+            requestAnimationFrame(renderAnimFrame);
+        }
+
+        /* ===================================================================
+           PHOTOREALISTIC UNDERWATER ECOSYSTEM & ANATOMICAL MARINE LIFE ENGINE
+           =================================================================== */
+
+        function applyWaterDepthFog(ctx, depth, alphaMultiplier = 1) {
+            ctx.globalAlpha = Math.min(0.98, (0.38 + depth * 0.62) * alphaMultiplier);
+        }
+
+        class PhotorealisticMarineAnimal {
+            constructor(type, palette) {
+                this.type = type;
+                this.palette = palette;
+                this.reset(true);
+            }
+
+            reset(initial = false) {
+                const w = viewportCanvas.width || 800;
+                const h = viewportCanvas.height || 500;
+                this.depth = 0.28 + Math.random() * 0.72;
+                const dir = Math.random() < 0.5 ? 1 : -1;
+                this.x = initial ? Math.random() * w : (dir === 1 ? -180 : w + 180);
+                this.y = h * (0.14 + Math.random() * 0.65);
+                this.phase = Math.random() * Math.PI * 2;
+                this.verticalDrift = (Math.random() - 0.5) * 0.12;
+                this.soundCooldown = 0;
+
+                if (this.type === 'whale') {
+                    this.depth = 0.32 + Math.random() * 0.25;
+                    this.speed = (0.18 + Math.random() * 0.12) * dir;
+                    this.y = h * (0.22 + Math.random() * 0.25);
+                    this.scale = 1.65 * this.depth;
+                } else if (this.type === 'dolphin') {
+                    this.speed = (0.85 + Math.random() * 0.45) * dir * (0.6 + this.depth * 0.5);
+                    this.y = h * (0.18 + Math.random() * 0.35);
+                    this.scale = 1.15 * this.depth;
+                } else if (this.type === 'shark') {
+                    this.speed = (0.55 + Math.random() * 0.3) * dir * (0.6 + this.depth * 0.5);
+                    this.y = h * (0.25 + Math.random() * 0.4);
+                    this.scale = 1.3 * this.depth;
+                } else if (this.type === 'stingray') {
+                    this.speed = (0.35 + Math.random() * 0.2) * dir * (0.6 + this.depth * 0.4);
+                    this.y = h * (0.55 + Math.random() * 0.28);
+                    this.scale = 1.1 * this.depth;
+                } else if (this.type === 'turtle') {
+                    this.speed = (0.32 + Math.random() * 0.2) * dir * (0.6 + this.depth * 0.4);
+                    this.y = h * (0.25 + Math.random() * 0.45);
+                    this.scale = 1.0 * this.depth;
+                } else if (this.type === 'octopus') {
+                    this.speed = (0.14 + Math.random() * 0.1) * dir;
+                    this.y = h - (55 + Math.random() * 55);
+                    this.scale = 0.95 * this.depth;
+                } else if (this.type === 'seahorse') {
+                    this.speed = (0.08 + Math.random() * 0.06) * dir;
+                    this.y = h - (75 + Math.random() * 85);
+                    this.scale = 0.72 * this.depth;
+                } else if (this.type === 'jellyfish') {
+                    this.speed = (0.06 + Math.random() * 0.08) * dir;
+                    this.y = h * (0.15 + Math.random() * 0.55);
+                    this.scale = 0.85 * this.depth;
+                } else {
+                    this.speed = (0.42 + Math.random() * 0.45) * dir * (0.5 + this.depth * 0.6);
+                    this.scale = (0.55 + Math.random() * 0.45) * this.depth;
+                }
+            }
+
+            update() {
+                const w = viewportCanvas.width || 800;
+                const h = viewportCanvas.height || 500;
+                this.x += this.speed;
+                this.phase += this.type === 'whale' ? 0.022 : (this.type === 'jellyfish' ? 0.035 : 0.055);
+                this.y += Math.sin(this.phase * 0.5) * 0.22 + this.verticalDrift;
+
+                if (this.y < 35) this.y = 35;
+                if (this.y > h - 45) this.y = h - 45;
+
+                if (this.soundCooldown > 0) this.soundCooldown--;
+
+                const dx = this.x - mouse.x;
+                const dy = this.y - mouse.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 85 && (this.type === 'fish' || this.type === 'dolphin')) {
+                    this.x += (dx / dist) * 1.4;
+                    this.y += (dy / dist) * 1.0;
+                }
+
+                if ((this.speed > 0 && this.x > w + 240) || (this.speed < 0 && this.x < -240)) {
+                    this.reset(false);
+                }
+
+                if (this.soundCooldown === 0 && Math.abs(this.x - w * 0.5) < 3) {
+                    if (this.type === 'whale') {
+                        playSoundEffect('whale');
+                        logEvent("Hydrophone: Humpback whale vocalization detected.", true);
+                        this.soundCooldown = 900;
+                    } else if (this.type === 'dolphin' && Math.random() < 0.6) {
+                        playSoundEffect('dolphin');
+                        logEvent("Hydrophone: Bottlenose dolphin echolocation clicks.", false);
+                        this.soundCooldown = 700;
+                    }
+                }
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                if (this.speed < 0) ctx.scale(-1, 1);
+                ctx.scale(this.scale, this.scale);
+
+                applyWaterDepthFog(ctx, this.depth);
+
+                ctx.shadowColor = 'rgba(0, 8, 22, 0.65)';
+                ctx.shadowBlur = 14;
+                ctx.shadowOffsetY = 8;
+
+                if (this.type === 'whale') {
+                    this.drawRealisticWhale(ctx);
+                } else if (this.type === 'dolphin') {
+                    this.drawRealisticDolphin(ctx);
+                } else if (this.type === 'shark') {
+                    this.drawRealisticShark(ctx);
+                } else if (this.type === 'stingray') {
+                    this.drawRealisticStingray(ctx);
+                } else if (this.type === 'turtle') {
+                    this.drawRealisticTurtle(ctx);
+                } else if (this.type === 'octopus') {
+                    this.drawRealisticOctopus(ctx);
+                } else if (this.type === 'seahorse') {
+                    this.drawRealisticSeahorse(ctx);
+                } else if (this.type === 'jellyfish') {
+                    this.drawRealisticJellyfish(ctx);
+                } else {
+                    this.drawRealisticTropicalFish(ctx);
+                }
+
+                ctx.restore();
+            }
+
+            drawRealisticWhale(ctx) {
+                const tailBeat = Math.sin(this.phase) * 16;
+                const bodyGrad = ctx.createLinearGradient(0, -35, 0, 38);
+                bodyGrad.addColorStop(0, '#16324f');
+                bodyGrad.addColorStop(0.55, '#264b6e');
+                bodyGrad.addColorStop(1, '#7ea2be');
+
+                ctx.fillStyle = bodyGrad;
+                ctx.beginPath();
+                ctx.moveTo(145, 2);
+                ctx.bezierCurveTo(110, -28, 35, -36, -55, -16);
+                ctx.quadraticCurveTo(-115, -6, -155, tailBeat * 0.6);
+                ctx.lineTo(-182, -22 + tailBeat);
+                ctx.quadraticCurveTo(-168, tailBeat * 0.6, -182, 22 + tailBeat);
+                ctx.lineTo(-155, 6 + tailBeat * 0.6);
+                ctx.quadraticCurveTo(-90, 24, -10, 32);
+                ctx.bezierCurveTo(65, 36, 125, 22, 145, 2);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.moveTo(-48, -17);
+                ctx.quadraticCurveTo(-56, -27, -64, -15);
+                ctx.fill();
+
+                ctx.strokeStyle = 'rgba(15, 35, 55, 0.45)';
+                ctx.lineWidth = 1.4;
+                for (let i = 15; i <= 105; i += 9) {
+                    ctx.beginPath();
+                    ctx.moveTo(i, 12);
+                    ctx.quadraticCurveTo(i - 12, 23, i - 35, 27);
+                    ctx.stroke();
+                }
+
+                const finSway = Math.sin(this.phase - 0.6) * 6;
+                ctx.fillStyle = '#1e3f5e';
+                ctx.beginPath();
+                ctx.moveTo(42, 14);
+                ctx.quadraticCurveTo(10, 44 + finSway, -24, 54 + finSway);
+                ctx.quadraticCurveTo(-8, 30, 18, 14);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.fillStyle = '#091522';
+                ctx.beginPath();
+                ctx.arc(104, 5, 2.4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            drawRealisticDolphin(ctx) {
+                const tailWave = Math.sin(this.phase * 1.4) * 11;
+                const grad = ctx.createLinearGradient(0, -18, 0, 18);
+                grad.addColorStop(0, '#2c4d69');
+                grad.addColorStop(0.55, '#5b82a1');
+                grad.addColorStop(1, '#c8dce8');
+
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.moveTo(56, 3);
+                ctx.lineTo(42, 0);
+                ctx.quadraticCurveTo(32, -13, 8, -15);
+                ctx.quadraticCurveTo(-24, -14, -52, tailWave * 0.4);
+                ctx.lineTo(-68, -13 + tailWave);
+                ctx.lineTo(-60, tailWave * 0.5);
+                ctx.lineTo(-68, 13 + tailWave);
+                ctx.lineTo(-52, 4 + tailWave * 0.4);
+                ctx.quadraticCurveTo(-18, 15, 16, 13);
+                ctx.quadraticCurveTo(36, 11, 43, 5);
+                ctx.lineTo(56, 4);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.fillStyle = '#27455e';
+                ctx.beginPath();
+                ctx.moveTo(4, -14);
+                ctx.quadraticCurveTo(-6, -29, -15, -26);
+                ctx.quadraticCurveTo(-10, -18, -11, -13);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.moveTo(14, 7);
+                ctx.quadraticCurveTo(4, 21, -5, 22);
+                ctx.quadraticCurveTo(1, 13, 4, 8);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.fillStyle = '#0b1824';
+                ctx.beginPath();
+                ctx.arc(33, 0, 1.8, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            drawRealisticShark(ctx) {
+                const tailSwing = Math.sin(this.phase * 1.1) * 12;
+                const grad = ctx.createLinearGradient(0, -20, 0, 20);
+                grad.addColorStop(0, '#2a3b4c');
+                grad.addColorStop(0.6, '#4d647a');
+                grad.addColorStop(1, '#c4d3de');
+
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.moveTo(64, 2);
+                ctx.quadraticCurveTo(38, -14, 4, -16);
+                ctx.quadraticCurveTo(-30, -14, -58, -3 + tailSwing * 0.4);
+                ctx.lineTo(-78, -24 + tailSwing);
+                ctx.lineTo(-66, tailSwing * 0.5);
+                ctx.lineTo(-74, 15 + tailSwing * 0.8);
+                ctx.lineTo(-56, 5 + tailSwing * 0.4);
+                ctx.quadraticCurveTo(-22, 15, 16, 14);
+                ctx.quadraticCurveTo(45, 12, 64, 2);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.fillStyle = '#263646';
+                ctx.beginPath();
+                ctx.moveTo(8, -15);
+                ctx.quadraticCurveTo(-2, -36, -12, -34);
+                ctx.quadraticCurveTo(-8, -20, -10, -14);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.moveTo(20, 9);
+                ctx.lineTo(2, 28);
+                ctx.lineTo(-6, 10);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.strokeStyle = 'rgba(15, 25, 35, 0.55)';
+                ctx.lineWidth = 1.2;
+                for (let g = 0; g < 5; g++) {
+                    ctx.beginPath();
+                    ctx.moveTo(27 - g * 3.2, -3);
+                    ctx.lineTo(26 - g * 3.2, 6);
+                    ctx.stroke();
+                }
+
+                ctx.fillStyle = '#081018';
+                ctx.beginPath();
+                ctx.arc(47, -2, 1.8, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            drawRealisticStingray(ctx) {
+                const wingUndulate = Math.sin(this.phase * 1.2) * 9;
+                const grad = ctx.createRadialGradient(5, 0, 4, 0, 0, 42);
+                grad.addColorStop(0, '#3a556e');
+                grad.addColorStop(0.7, '#243a4f');
+                grad.addColorStop(1, '#587b96');
+
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.moveTo(36, 0);
+                ctx.bezierCurveTo(18, -24 + wingUndulate, -12, -32 + wingUndulate * 1.3, -24, -4);
+                ctx.lineTo(-24, 4);
+                ctx.bezierCurveTo(-12, 32 - wingUndulate * 1.3, 18, 24 - wingUndulate, 36, 0);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.strokeStyle = '#2d465c';
+                ctx.lineWidth = 2.2;
+                ctx.beginPath();
+                ctx.moveTo(-22, 0);
+                ctx.quadraticCurveTo(-48, wingUndulate * 0.4, -74, -wingUndulate * 0.3);
+                ctx.stroke();
+
+                ctx.fillStyle = '#0c1926';
+                ctx.beginPath();
+                ctx.arc(18, -5, 2, 0, Math.PI * 2);
+                ctx.arc(18, 5, 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            drawRealisticTurtle(ctx) {
+                const flipperStroke = Math.sin(this.phase) * 0.48;
+
+                ctx.fillStyle = '#2e5244';
+                ctx.beginPath();
+                ctx.ellipse(-22, 10, 9, 4, 0.4, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#3b6654';
+                ctx.beginPath();
+                ctx.ellipse(26, 2, 8, 5.5, 0.1, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#0b1812';
+                ctx.beginPath();
+                ctx.arc(29, 0.5, 1.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                const shellGrad = ctx.createLinearGradient(0, -18, 0, 14);
+                shellGrad.addColorStop(0, '#4f6b47');
+                shellGrad.addColorStop(0.5, '#354d32');
+                shellGrad.addColorStop(1, '#8fa37e');
+                ctx.fillStyle = shellGrad;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 23, 14, -0.08, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = 'rgba(210, 195, 145, 0.35)';
+                ctx.lineWidth = 1.2;
+                ctx.beginPath();
+                ctx.ellipse(-1, -2, 14, 7, -0.08, 0, Math.PI * 2);
+                ctx.stroke();
+
+                ctx.save();
+                ctx.translate(10, 6);
+                ctx.rotate(flipperStroke);
+                ctx.fillStyle = '#345c4b';
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.quadraticCurveTo(-8, 16, -16, 25);
+                ctx.quadraticCurveTo(-3, 18, 6, 4);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            }
+
+            drawRealisticOctopus(ctx) {
+                const mantlePulse = Math.sin(this.phase) * 2.5;
+                const grad = ctx.createRadialGradient(0, -14, 3, 0, -10, 22);
+                grad.addColorStop(0, '#a84b3e');
+                grad.addColorStop(0.7, '#752e26');
+                grad.addColorStop(1, '#4a1b16');
+
+                ctx.strokeStyle = '#7d3229';
+                ctx.lineCap = 'round';
+                for (let t = 0; t < 6; t++) {
+                    const offset = (t - 2.5) * 4.5;
+                    const wave1 = Math.sin(this.phase + t * 0.8) * 10;
+                    const wave2 = Math.cos(this.phase * 0.8 + t) * 12;
+                    ctx.lineWidth = 4.2 - (t % 2) * 0.6;
+                    ctx.beginPath();
+                    ctx.moveTo(offset * 0.6, 2);
+                    ctx.bezierCurveTo(
+                        offset * 1.4 + wave1, 14,
+                        offset * 2.1 - wave2, 26,
+                        offset * 2.6 + wave1 * 0.8, 36
+                    );
+                    ctx.stroke();
+                }
+
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.ellipse(-3, -12, 16 + mantlePulse * 0.4, 12, -0.35, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#e6c88a';
+                ctx.beginPath();
+                ctx.arc(6, -3, 3.2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#110806';
+                ctx.fillRect(4.2, -3.7, 3.6, 1.4);
+            }
+
+            drawRealisticSeahorse(ctx) {
+                const sway = Math.sin(this.phase) * 3;
+                const grad = ctx.createLinearGradient(0, -22, 0, 26);
+                grad.addColorStop(0, '#d99b38');
+                grad.addColorStop(0.5, '#b87624');
+                grad.addColorStop(1, '#854f14');
+
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.moveTo(3, -24);
+                ctx.lineTo(6, -19);
+                ctx.lineTo(14, -17);
+                ctx.lineTo(14, -14);
+                ctx.lineTo(6, -14);
+                ctx.quadraticCurveTo(11, -3, 7, 7);
+                ctx.quadraticCurveTo(2, 16, 1, 22);
+                ctx.quadraticCurveTo(6 + sway, 30, 1 + sway, 32);
+                ctx.quadraticCurveTo(-4 + sway, 30, -2, 22);
+                ctx.quadraticCurveTo(-5, 10, -4, -3);
+                ctx.quadraticCurveTo(-3, -15, 0, -22);
+                ctx.closePath();
+                ctx.fill();
+
+                const finFlutter = Math.sin(this.phase * 4) * 2;
+                ctx.fillStyle = 'rgba(255, 220, 150, 0.55)';
+                ctx.beginPath();
+                ctx.moveTo(-4, -2);
+                ctx.lineTo(-10 - finFlutter, -5);
+                ctx.lineTo(-10 - finFlutter, 4);
+                ctx.lineTo(-4, 3);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.fillStyle = '#1a0f05';
+                ctx.beginPath();
+                ctx.arc(5, -17, 1.4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            drawRealisticJellyfish(ctx) {
+                const bellContract = Math.sin(this.phase) * 4;
+                const bellW = 18 - bellContract * 0.6;
+                const bellH = 14 + bellContract * 0.5;
+
+                const bellGrad = ctx.createRadialGradient(0, -4, 2, 0, 0, bellW);
+                bellGrad.addColorStop(0, 'rgba(210, 235, 255, 0.72)');
+                bellGrad.addColorStop(0.6, 'rgba(130, 185, 235, 0.42)');
+                bellGrad.addColorStop(1, 'rgba(80, 140, 210, 0.18)');
+
+                ctx.strokeStyle = 'rgba(185, 220, 250, 0.35)';
+                ctx.lineWidth = 1.2;
+                for (let i = -12; i <= 12; i += 4) {
+                    const wave = Math.sin(this.phase + i * 0.3) * 7;
+                    ctx.beginPath();
+                    ctx.moveTo(i * 0.8, 2);
+                    ctx.quadraticCurveTo(i + wave, 22, i * 1.1 - wave * 0.6, 44);
+                    ctx.stroke();
+                }
+
+                ctx.fillStyle = bellGrad;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, bellW, bellH, 0, Math.PI, 0);
+                ctx.quadraticCurveTo(0, 5, -bellW, 0);
+                ctx.fill();
+            }
+
+            drawRealisticTropicalFish(ctx) {
+                const tailFlick = Math.sin(this.phase * 1.8) * 6;
+                const grad = ctx.createLinearGradient(0, -10, 0, 10);
+                grad.addColorStop(0, this.palette.top);
+                grad.addColorStop(0.55, this.palette.mid);
+                grad.addColorStop(1, this.palette.belly);
+
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.moveTo(20, 0);
+                ctx.quadraticCurveTo(6, -12, -14, -4);
+                ctx.lineTo(-24, -10 + tailFlick);
+                ctx.lineTo(-21, tailFlick * 0.4);
+                ctx.lineTo(-24, 10 + tailFlick);
+                ctx.lineTo(-14, 4);
+                ctx.quadraticCurveTo(6, 12, 20, 0);
+                ctx.closePath();
+                ctx.fill();
+
+                if (this.palette.stripe) {
+                    ctx.fillStyle = this.palette.stripe;
+                    ctx.beginPath();
+                    ctx.ellipse(2, 0, 2.2, 8.5, 0.1, 0, Math.PI * 2);
+                    ctx.ellipse(-6, 0, 2.0, 7.2, 0.1, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.fillStyle = '#e5eef5';
+                ctx.beginPath();
+                ctx.arc(12, -2, 2.1, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#071019';
+                ctx.beginPath();
+                ctx.arc(12.6, -2, 1.1, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        const fishPalettes = [
+            { top: '#1d5b79', mid: '#468b97', belly: '#b8d8d8', stripe: 'rgba(20, 45, 65, 0.35)' },
+            { top: '#b85d19', mid: '#d9822b', belly: '#f2d49b', stripe: 'rgba(255, 255, 255, 0.45)' },
+            { top: '#2b4c7e', mid: '#567ebb', belly: '#dce0e6', stripe: 'rgba(235, 195, 52, 0.4)' },
+            { top: '#2e6f40', mid: '#509e65', belly: '#c5e0cd', stripe: null },
+            { top: '#8c3b4a', mid: '#bd6b73', belly: '#e8c5c8', stripe: 'rgba(255, 255, 255, 0.25)' }
+        ];
+
+        const animals = [
+            new PhotorealisticMarineAnimal('whale', null),
+            new PhotorealisticMarineAnimal('dolphin', null),
+            new PhotorealisticMarineAnimal('dolphin', null),
+            new PhotorealisticMarineAnimal('shark', null),
+            new PhotorealisticMarineAnimal('stingray', null),
+            new PhotorealisticMarineAnimal('stingray', null),
+            new PhotorealisticMarineAnimal('turtle', null),
+            new PhotorealisticMarineAnimal('turtle', null),
+            new PhotorealisticMarineAnimal('octopus', null),
+            new PhotorealisticMarineAnimal('seahorse', null),
+            new PhotorealisticMarineAnimal('seahorse', null),
+            new PhotorealisticMarineAnimal('jellyfish', null),
+            new PhotorealisticMarineAnimal('jellyfish', null),
+            ...Array(14).fill(0).map((_, idx) => new PhotorealisticMarineAnimal('fish', fishPalettes[idx % fishPalettes.length]))
+        ];
+
+        const bubbles = Array(32).fill(0).map(() => ({
+            x: Math.random() * 1000,
+            y: Math.random() * 650,
+            r: Math.random() * 3.2 + 1.0,
+            speed: Math.random() * 1.4 + 0.5,
+            wobble: Math.random() * Math.PI * 2
+        }));
+
+        const marineParticles = Array(55).fill(0).map(() => ({
+            x: Math.random() * 1000,
+            y: Math.random() * 650,
+            size: Math.random() * 1.8 + 0.5,
+            vx: (Math.random() - 0.5) * 0.25,
+            vy: (Math.random() - 0.5) * 0.18,
+            alpha: Math.random() * 0.35 + 0.1
+        }));
+
+        let oceanPhase = 0;
+
+        function renderPhotorealisticOceanEnvironment(ctx, w, h) {
+            oceanPhase += 0.015;
+
+            const waterGrad = ctx.createLinearGradient(0, 0, 0, h);
+            waterGrad.addColorStop(0, '#0a3d62');
+            waterGrad.addColorStop(0.32, '#062642');
+            waterGrad.addColorStop(0.75, '#031529');
+            waterGrad.addColorStop(1, '#010a16');
+            ctx.fillStyle = waterGrad;
+            ctx.fillRect(0, 0, w, h);
+
+            ctx.save();
+            ctx.globalCompositeOperation = 'screen';
+            for (let r = 0; r < 6; r++) {
+                const rayBaseX = w * (0.1 + r * 0.16) + Math.sin(oceanPhase * 0.7 + r * 1.3) * 35;
+                const raySpread = 85 + Math.cos(oceanPhase + r) * 25;
+                const rayGrad = ctx.createLinearGradient(rayBaseX, 0, rayBaseX + 40, h * 0.85);
+                rayGrad.addColorStop(0, 'rgba(115, 225, 255, 0.16)');
+                rayGrad.addColorStop(0.45, 'rgba(45, 165, 215, 0.06)');
+                rayGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+                ctx.fillStyle = rayGrad;
+                ctx.beginPath();
+                ctx.moveTo(rayBaseX - 25, 0);
+                ctx.lineTo(rayBaseX + 35, 0);
+                ctx.lineTo(rayBaseX + raySpread + 60, h * 0.88);
+                ctx.lineTo(rayBaseX - raySpread * 0.4, h * 0.88);
+                ctx.closePath();
+                ctx.fill();
+            }
+            ctx.restore();
+
+            ctx.fillStyle = 'rgba(4, 22, 42, 0.78)';
+            ctx.beginPath();
+            ctx.moveTo(0, h);
+            ctx.lineTo(0, h - 85);
+            ctx.quadraticCurveTo(w * 0.22, h - 135, w * 0.48, h - 90);
+            ctx.quadraticCurveTo(w * 0.76, h - 145, w, h - 80);
+            ctx.lineTo(w, h);
+            ctx.closePath();
+            ctx.fill();
+
+            for (let k = 0; k < 18; k++) {
+                const kx = (w / 17) * k + 10;
+                const kh = 85 + (k % 4) * 32;
+                const sway = Math.sin(oceanPhase * 1.2 + k * 0.7) * 18;
+
+                ctx.strokeStyle = k % 2 === 0 ? 'rgba(18, 72, 62, 0.75)' : 'rgba(26, 88, 70, 0.65)';
+                ctx.lineWidth = 4 - (k % 2);
+                ctx.beginPath();
+                ctx.moveTo(kx, h - 18);
+                ctx.bezierCurveTo(
+                    kx + sway * 0.5, h - kh * 0.4,
+                    kx - sway * 0.6, h - kh * 0.75,
+                    kx + sway, h - kh
+                );
+                ctx.stroke();
+
+                ctx.fillStyle = 'rgba(24, 92, 74, 0.55)';
+                for (let b = 0.35; b <= 0.85; b += 0.25) {
+                    const lx = kx + sway * b * 0.7;
+                    const ly = h - kh * b;
+                    ctx.beginPath();
+                    ctx.ellipse(lx + 7, ly, 8, 2.5, 0.3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            const floorGrad = ctx.createLinearGradient(0, h - 65, 0, h);
+            floorGrad.addColorStop(0, '#091d34');
+            floorGrad.addColorStop(1, '#020813');
+            ctx.fillStyle = floorGrad;
+            ctx.beginPath();
+            ctx.moveTo(0, h);
+            ctx.lineTo(0, h - 42);
+            ctx.quadraticCurveTo(w * 0.28, h - 68, w * 0.55, h - 38);
+            ctx.quadraticCurveTo(w * 0.82, h - 22, w, h - 52);
+            ctx.lineTo(w, h);
+            ctx.closePath();
+            ctx.fill();
+
+            const coralClusters = [
+                { x: w * 0.12, y: h - 38, color: '#8f4355', r: 22 },
+                { x: w * 0.32, y: h - 44, color: '#9e6234', r: 18 },
+                { x: w * 0.58, y: h - 35, color: '#3b7a75', r: 24 },
+                { x: w * 0.84, y: h - 42, color: '#784b84', r: 20 }
+            ];
+
+            coralClusters.forEach((c, idx) => {
+                ctx.fillStyle = '#0c2138';
+                ctx.beginPath();
+                ctx.arc(c.x, c.y + 10, c.r * 1.4, Math.PI, 0);
+                ctx.fill();
+
+                ctx.strokeStyle = c.color;
+                ctx.lineWidth = 3.5;
+                ctx.lineCap = 'round';
+                for (let br = -2; br <= 2; br++) {
+                    ctx.beginPath();
+                    ctx.moveTo(c.x + br * 4, c.y);
+                    ctx.quadraticCurveTo(
+                        c.x + br * 9, c.y - c.r * 0.7,
+                        c.x + br * 12 + Math.sin(oceanPhase + idx) * 2, c.y - c.r * 1.25
+                    );
+                    ctx.stroke();
+                }
+            });
+
+            marineParticles.forEach(p => {
+                p.x += p.vx + Math.sin(oceanPhase + p.y * 0.02) * 0.15;
+                p.y += p.vy;
+                if (p.x < 0) p.x = w;
+                if (p.x > w) p.x = 0;
+                if (p.y < 0) p.y = h;
+                if (p.y > h) p.y = 0;
+
+                ctx.fillStyle = `rgba(185, 230, 255, ${p.alpha})`;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        function renderViewport() {
+            if (!viewportCanvas.width) return requestAnimationFrame(renderViewport);
+            const w = viewportCanvas.width;
+            const h = viewportCanvas.height;
+
+            ctxView.clearRect(0, 0, w, h);
+
+            renderPhotorealisticOceanEnvironment(ctxView, w, h);
+
+            if (isSpotlightOn) {
+                ctxView.save();
+                ctxView.globalCompositeOperation = 'screen';
+                const beamGrad = ctxView.createRadialGradient(w * 0.5, h * 0.5, 15, w * 0.5, h * 0.5, Math.max(w, h) * 0.55);
+                beamGrad.addColorStop(0, 'rgba(170, 240, 255, 0.24)');
+                beamGrad.addColorStop(0.55, 'rgba(40, 180, 220, 0.08)');
+                beamGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                ctxView.fillStyle = beamGrad;
+                ctxView.fillRect(0, 0, w, h);
+                ctxView.restore();
+            }
+
+            animals.sort((a, b) => a.depth - b.depth);
+            animals.forEach(animal => {
+                animal.update();
+                animal.draw(ctxView);
+            });
+
+            bubbles.forEach(b => {
+                b.y -= b.speed;
+                b.wobble += 0.05;
+                const wx = b.x + Math.sin(b.wobble) * 2.2;
+                if (b.y < -10) {
+                    b.y = h + 10;
+                    b.x = Math.random() * w;
+                }
+
+                ctxView.strokeStyle = 'rgba(210, 245, 255, 0.55)';
+                ctxView.lineWidth = 1.1;
+                ctxView.beginPath();
+                ctxView.arc(wx, b.y, b.r, 0, Math.PI * 2);
+                ctxView.stroke();
+
+                ctxView.fillStyle = 'rgba(255, 255, 255, 0.85)';
+                ctxView.beginPath();
+                ctxView.arc(wx - b.r * 0.32, b.y - b.r * 0.32, b.r * 0.28, 0, Math.PI * 2);
+                ctxView.fill();
+            });
+
+            requestAnimationFrame(renderViewport);
+        }
+
+        let radarAngle = 0;
+        function renderRadar() {
+            if (!radarCanvas.width) return requestAnimationFrame(renderRadar);
+            const cx = radarCanvas.width / 2;
+            const cy = radarCanvas.height / 2;
+            const radius = cx - 5;
+
+            ctxRadar.clearRect(0, 0, radarCanvas.width, radarCanvas.height);
+
+            ctxRadar.strokeStyle = 'rgba(0, 255, 136, 0.2)';
+            [0.3, 0.6, 0.9].forEach(r => {
+                ctxRadar.beginPath();
+                ctxRadar.arc(cx, cy, radius * r, 0, Math.PI * 2);
+                ctxRadar.stroke();
+            });
+
+            radarAngle += 0.025;
+            ctxRadar.fillStyle = 'rgba(0, 255, 136, 0.15)';
+            ctxRadar.beginPath();
+            ctxRadar.moveTo(cx, cy);
+            ctxRadar.arc(cx, cy, radius, radarAngle - 0.4, radarAngle);
+            ctxRadar.closePath();
+            ctxRadar.fill();
+
+            requestAnimationFrame(renderRadar);
+        }
+
+        function logEvent(msg, alert = false) {
+            const logBox = document.getElementById('eventLog');
+            const entry = document.createElement('div');
+            entry.className = `log-entry`;
+            const timeStr = document.getElementById('timerDigits').innerText;
+            entry.innerHTML = `<span class="log-time">[${timeStr}]</span><span class="log-msg ${alert ? 'alert' : 'success'}">${msg}</span>`;
+            logBox.appendChild(entry);
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        function resizeCanvasBounds() {
+            if (viewportCanvas.parentElement) {
+                viewportCanvas.width = viewportCanvas.parentElement.clientWidth;
+                viewportCanvas.height = viewportCanvas.parentElement.clientHeight;
+            }
+            if (radarCanvas.parentElement) {
+                radarCanvas.width = radarCanvas.parentElement.clientWidth;
+                radarCanvas.height = radarCanvas.parentElement.clientHeight;
+            }
+        }
+
+        document.getElementById('startRegBtn').addEventListener('click', () => {
+            const inputVal = document.getElementById('crewNameInput').value.trim();
+            if (inputVal) crewName = inputVal;
+            document.getElementById('hudCrewName').innerText = crewName;
+            document.getElementById('regOverlay').style.display = 'none';
+
+            initAudio();
+            resizeCanvasBounds();
+
+            currentMission = 1;
+            repairedSystems = [false, false, false, false, false];
+            updateDashboardVisuals();
+            document.getElementById('missionBadge').innerText = "MISSION 1 OF 5";
+
+            prepareMissionState(
+                1,
+                "Welcome, marine investigators! You are inside NAUTILUS-7, deep below the ocean. Your team must complete five physical missions. Listen to instructions for Mission 1."
+            );
+        });
+
+        document.getElementById('startTimerBtn').addEventListener('click', triggerManualTimerStart);
+        document.getElementById('retryMissionBtn').addEventListener('click', retryCurrentMission);
+        document.getElementById('bannerRetryBtn').addEventListener('click', retryCurrentMission);
+        document.getElementById('bannerSolveBtn').addEventListener('click', confirmMissionSuccess);
+
+        document.getElementById('newCrewBtn').addEventListener('click', () => {
+            document.getElementById('victoryOverlay').style.display = 'none';
+            document.getElementById('regOverlay').style.display = 'flex';
+        });
+
+        document.getElementById('teacherSolveBtn').addEventListener('click', confirmMissionSuccess);
+
+        document.getElementById('audioToggleBtn').addEventListener('click', () => {
+            isAudioMuted = !isAudioMuted;
+            document.getElementById('audioToggleBtn').style.opacity = isAudioMuted ? '0.4' : '1';
+            updateCaption(isAudioMuted ? "[AUDIO: MUTED]" : "[AUDIO: BUBBLING WATER]");
+        });
+
+        document.getElementById('sonarPulseBtn').addEventListener('click', () => {
+            playSoundEffect('sonar');
+            logEvent("Manual sonar pulse transmitted.");
+        });
+
+        document.getElementById('spotlightBtn').addEventListener('click', () => {
+            isSpotlightOn = !isSpotlightOn;
+            document.getElementById('spotlightBtn').innerText = isSpotlightOn ? "SEARCHLIGHT ON" : "SEARCHLIGHT OFF";
+        });
+
+        viewportCanvas.addEventListener('mousemove', (e) => {
+            const rect = viewportCanvas.getBoundingClientRect();
+            mouse.x = e.clientX - rect.left;
+            mouse.y = e.clientY - rect.top;
+        });
+
+        window.addEventListener('resize', resizeCanvasBounds);
+
+        resizeCanvasBounds();
+        requestAnimationFrame(renderViewport);
+        requestAnimationFrame(renderRadar);
+    </script>
+</body>
+</html>
